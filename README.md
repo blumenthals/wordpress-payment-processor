@@ -1,8 +1,10 @@
-=== Payment Processor Plugin
+Payment Processor Plugin
+========================
 
 Provides payment processors and settings screens for other plugins to use to process payments.
 
-== API
+API
+---
 
 `PaymentProcessor::addProcessor($processor)` -- ties an instance to a slug
 
