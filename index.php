@@ -1,13 +1,13 @@
 <?php
 
 /**
- * @package Fake Payment Processor
+ * @package Payment Processor
  * @version 1.0
  */
 /*
 Plugin Name: Payment Processor Library
 Plugin URI: http://freesites.com/
-Description: Payment Processor for Freesites.com
+Description: Payment Processor for WordPress sites, providing payment processor settings to other WordPress plugins.
 Author: Aria Stewart
 Version: 1.0
 */
