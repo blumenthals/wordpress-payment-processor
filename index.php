@@ -19,6 +19,10 @@ Version: 1.0
 		var $address;
 		var $name;
 		var $email;
+		var $success;
+		public function PaymentRequest() {
+			$this->success = false;
+		}
 	}
 
 	require(dirname(__FILE__)."/fake.php");
@@ -33,24 +37,63 @@ Version: 1.0
 		}
 
 		public function process($request, $returnURL) {
+			if(!$this->enabled) wp_die("This processor is not enabled");
 			do_action('payment_processed', $request);
 			do_action('payment_processed-'.$this->slug(), $request);
+			if($request->success) {
+				wp_redirect($returnURL);
+			} else {
+				wp_die("There was a problem processing your payment.");
+			}
 		}
 
-		private static $processors;
+		private static $processors = array();
 
 		public static function getProcessors() {
 			return self::$processors;
 		}
 
 		public static function addProcessor($p) {
-			if(!isset(self::$processors)) self::$processors = array();
 			self::$processors[$p->slug()] = $p;
 		}
 
 		public static function getProcessor($slug) {
 			return self::$processors[$slug];
 		}
+
+		private $enabled = false;
+		static function enable() { $this->enabled = true; }
+
 	}
+
+	add_action('admin_init', function() {
+		foreach(PaymentProcessor::getProcessors() as $p) {
+			$sprefix = "payment_processor_".$p->slug();
+			register_setting('payment_processor_options', "payment_processor_{$p->slug()}_enabled", 'boolval');
+			add_settings_section("{$sprefix}_section", "Settings for {$p->name()}", function() { }, __FILE__);
+			add_settings_field( "payment_processor_{$p->slug()}_enabled", "Enabled", function() use (&$p, $sprefix) {
+				echo "<input type='checkbox' name='payment_processor_{$p->slug()}_enabled' value='1' class='code' ".checked(1, get_option("{$sprefix}_enabled"), false)." > Enable this processor";
+			}, __FILE__, $sprefix."_section");
+		}
+	});
+
+	function boolval($v) {
+		return (boolean)$v;
+	}
+
+	add_action('admin_menu', function() {
+		add_options_page('Payment Processor Options', 'Payment Processors', 'manage_options', __FILE__, function() { ?>
+		<div class='wrap'>
+		<h2>Payment Processors</h2>
+		<p>Configure payment processor settings.</p>
+		<form action="options.php" method="post">
+			<?php settings_fields('payment_processor_options'); ?>
+			<?php do_settings_sections(__FILE__); ?>
+			<input name="Submit" type="submit" value="<?php esc_attr_e('Save Changes'); ?>" />
+		</form>
+		</div>
+	<?php });
+	});
+
 
 ?>
