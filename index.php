@@ -53,6 +53,14 @@ Version: 1.0
 			return self::$processors;
 		}
 
+		public static function getEnabledProcessors() {
+			$procs = array();
+			foreach(self::getProcessors() as $p) {
+				if($p->enabled()) $procs[] = $p;
+			}
+			return $procs;
+		}
+
 		public static function addProcessor($p) {
 			self::$processors[$p->slug()] = $p;
 		}
@@ -61,18 +69,20 @@ Version: 1.0
 			return self::$processors[$slug];
 		}
 
-		private $enabled = false;
-		static function enable() { $this->enabled = true; }
+		protected $enabled = false;
+		public function enable() { $this->enabled = true; }
+		public function disable() { $this->enabled = false; }
+		public function enabled() { return $this->enabled; }
 
 	}
 
-	add_action('admin_init', function() {
+	add_action(is_multisite()?'network_admin_init':'admin_init', function() {
 		foreach(PaymentProcessor::getProcessors() as $p) {
 			$sprefix = "payment_processor_".$p->slug();
 			register_setting('payment_processor_options', "payment_processor_{$p->slug()}_enabled", 'boolval');
 			add_settings_section("{$sprefix}_section", "Settings for {$p->name()}", function() { }, __FILE__);
 			add_settings_field( "payment_processor_{$p->slug()}_enabled", "Enabled", function() use (&$p, $sprefix) {
-				echo "<input type='checkbox' name='payment_processor_{$p->slug()}_enabled' value='1' class='code' ".checked(1, get_option("{$sprefix}_enabled"), false)." > Enable this processor";
+				echo "<input type='checkbox' name='{$sprefix}_enabled' value='1' class='code' ".checked(1, get_site_option("{$sprefix}_enabled"), false)." > Enable this processor";
 			}, __FILE__, $sprefix."_section");
 		}
 	});
@@ -81,18 +91,29 @@ Version: 1.0
 		return (boolean)$v;
 	}
 
-	add_action('admin_menu', function() {
-		add_options_page('Payment Processor Options', 'Payment Processors', 'manage_options', __FILE__, function() { ?>
-		<div class='wrap'>
-		<h2>Payment Processors</h2>
-		<p>Configure payment processor settings.</p>
-		<form action="options.php" method="post">
-			<?php settings_fields('payment_processor_options'); ?>
-			<?php do_settings_sections(__FILE__); ?>
-			<input name="Submit" type="submit" value="<?php esc_attr_e('Save Changes'); ?>" />
-		</form>
-		</div>
-	<?php });
+	add_action(is_multisite()? 'network_admin_menu':'admin_menu', function() {
+		add_submenu_page(is_multisite() ? 'settings.php' : 'options-general.php', 'Payment Processor Options', 'Payment Processors', 'manage_options', __FILE__, function() { 
+			if($_SERVER['REQUEST_METHOD'] == 'POST') {
+				update_site_option('payment_processor_fake_enabled', boolval(@$_POST['payment_processor_fake_enabled']));
+				wp_redirect("settings.php?page=payment-processor/index.php&updated=true");
+			} else { ?>
+				<div class='wrap'>
+				<?php if(@$_GET['updated']) echo "Settings updated."; ?>
+				<h2>Payment Processors</h2>
+				<p>Configure payment processor settings.</p>
+				<form action="" method="post">
+					<?php foreach(PaymentProcessor::getProcessors() as $p) {
+						$slug = $p->slug();
+						$id = "payment_processor_{$slug}_enabled";
+						echo "<input type='checkbox' id='$id' name='$id' value='1' ";
+						checked(get_site_option("payment_processor_{$slug}_enabled"));
+						echo "><label for='$id'>{$p->name()}</label>";
+					} ?>
+					<input name="Submit" type="submit" value="<?php esc_attr_e('Save Changes'); ?>" />
+				</form>
+				</div>
+			<?php }
+		});
 	});
 
 

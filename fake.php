@@ -3,7 +3,7 @@
 add_action('init', function() {
 	// FIXME: make it a preference to enable or disable this processor
 	$p = new FakePaymentProcessor();
-	if(get_option('payment_processor_fake')) $p->enable();
+	if(get_site_option('payment_processor_fake_enabled')) $p->enable();
 	PaymentProcessor::addProcessor($p);
 });
 
